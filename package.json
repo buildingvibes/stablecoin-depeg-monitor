@@ -1,0 +1,10 @@
+{
+  "type": "module",
+  "name": "stablecoin-depeg-monitor",
+  "version": "1.0.0",
+  "description": "Weekly intelligence brief on stablecoin stability, depeg risks, and reserve health",
+  "scripts": {
+    "fetch": "node scripts/api-call.js",
+    "analyze": "node scripts/ai-analysis.js"
+  }
+}

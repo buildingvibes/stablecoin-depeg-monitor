@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StableGuard - Stablecoin Depeg Monitor</title>
+    <meta name="description" content="Real-time stablecoin stability monitoring. Track depeg risks, price deviations, and reserve health for major USD stablecoins.">
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2332;
+            --bg-card-hover: #1f2b3d;
+            --border: #2a3a50;
+            --text-primary: #e8edf5;
+            --text-secondary: #8b95a8;
+            --text-muted: #5a6577;
+            --accent-green: #00e68a;
+            --accent-green-dim: rgba(0, 230, 138, 0.15);
+            --accent-yellow: #ffc107;
+            --accent-yellow-dim: rgba(255, 193, 7, 0.15);
+            --accent-orange: #ff8c42;
+            --accent-orange-dim: rgba(255, 140, 66, 0.15);
+            --accent-red: #ff4757;
+            --accent-red-dim: rgba(255, 71, 87, 0.15);
+            --accent-blue: #4dabf7;
+            --accent-blue-dim: rgba(77, 171, 247, 0.15);
+            --gradient-hero: linear-gradient(135deg, #00e68a, #4dabf7, #7c5cff);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Animated background */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(77, 171, 247, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(77, 171, 247, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            padding: 48px 0 32px;
+            text-align: center;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--gradient-hero);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 24px rgba(0, 230, 138, 0.3);
+        }
+
+        .logo-text {
+            font-size: 36px;
+            font-weight: 800;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 16px;
+            max-width: 600px;
+            margin: 0 auto 8px;
+        }
+
+        .powered-by {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .powered-by a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .powered-by a:hover { text-decoration: underline; }
+
+        /* Stats bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-blue);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* AI Analysis section */
+        .analysis-section {
+            background: linear-gradient(135deg, rgba(77, 171, 247, 0.08), rgba(124, 92, 255, 0.08));
+            border: 1px solid rgba(77, 171, 247, 0.2);
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 32px;
+        }
+
+        .analysis-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .analysis-badge {
+            background: var(--accent-blue-dim);
+            color: var(--accent-blue);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .analysis-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .analysis-content {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .analysis-content p {
+            margin-bottom: 12px;
+        }
+
+        .analysis-meta {
+            margin-top: 16px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        /* Section headers */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .section-subtitle {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* Stablecoin table */
+        .coin-table-wrapper {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 32px;
+        }
+
+        .coin-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .coin-table thead th {
+            background: var(--bg-secondary);
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .coin-table tbody td {
+            padding: 14px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(42, 58, 80, 0.5);
+        }
+
+        .coin-table tbody tr {
+            transition: background 0.15s;
+        }
+
+        .coin-table tbody tr:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .coin-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .coin-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .coin-symbol-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            background: var(--accent-blue-dim);
+            color: var(--accent-blue);
+        }
+
+        .coin-name-text {
+            font-weight: 600;
+        }
+
+        .coin-symbol-text {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .price-value {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-weight: 600;
+        }
+
+        .deviation-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .risk-LOW { background: var(--accent-green-dim); color: var(--accent-green); }
+        .risk-MEDIUM { background: var(--accent-yellow-dim); color: var(--accent-yellow); }
+        .risk-HIGH { background: var(--accent-orange-dim); color: var(--accent-orange); }
+        .risk-CRITICAL { background: var(--accent-red-dim); color: var(--accent-red); }
+
+        .dev-positive { background: rgba(0, 230, 138, 0.1); color: var(--accent-green); }
+        .dev-neutral { background: rgba(77, 171, 247, 0.1); color: var(--accent-blue); }
+        .dev-warning { background: rgba(255, 193, 7, 0.1); color: var(--accent-yellow); }
+        .dev-danger { background: rgba(255, 71, 87, 0.1); color: var(--accent-red); }
+
+        .risk-meter {
+            width: 80px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .risk-meter-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        .market-cap {
+            color: var(--text-secondary);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+        }
+
+        /* Price chart area */
+        .chart-section {
+            margin-bottom: 32px;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.2s;
+        }
+
+        .chart-card:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .chart-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .chart-coin-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .chart-coin-price {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .mini-chart {
+            width: 100%;
+            height: 60px;
+        }
+
+        .mini-chart svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .chart-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Events section */
+        .events-section {
+            margin-bottom: 32px;
+        }
+
+        .event-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 12px;
+            border-left: 3px solid var(--accent-blue);
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .event-card:hover {
+            border-left-color: var(--accent-green);
+            transform: translateX(4px);
+        }
+
+        .event-card.cat-depeg { border-left-color: var(--accent-red); }
+        .event-card.cat-reserve { border-left-color: var(--accent-orange); }
+        .event-card.cat-regulation { border-left-color: var(--accent-yellow); }
+        .event-card.cat-cyberattack { border-left-color: var(--accent-red); }
+
+        .event-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .event-time {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .event-category {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .cat-depeg .event-category { background: var(--accent-red-dim); color: var(--accent-red); }
+        .cat-reserve .event-category { background: var(--accent-orange-dim); color: var(--accent-orange); }
+        .cat-regulation .event-category { background: var(--accent-yellow-dim); color: var(--accent-yellow); }
+        .cat-cyberattack .event-category { background: var(--accent-red-dim); color: var(--accent-red); }
+        .event-category { background: var(--accent-blue-dim); color: var(--accent-blue); }
+
+        .event-summary {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .event-entities {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .entity-tag {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .event-sources {
+            margin-top: 10px;
+        }
+
+        .event-sources a {
+            color: var(--accent-blue);
+            font-size: 12px;
+            text-decoration: none;
+            margin-right: 12px;
+        }
+
+        .event-sources a:hover { text-decoration: underline; }
+
+        .no-events {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-muted);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .no-events-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 32px 0 48px;
+            color: var(--text-muted);
+            font-size: 13px;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .footer a:hover { text-decoration: underline; }
+
+        .last-updated {
+            margin-top: 8px;
+            font-size: 12px;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 80px 24px;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header { padding: 32px 0 24px; }
+            .logo-text { font-size: 28px; }
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+            .coin-table-wrapper { overflow-x: auto; }
+            .coin-table { min-width: 700px; }
+            .chart-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-bar { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">$</div>
+                <span class="logo-text">StableGuard</span>
+            </div>
+            <p class="subtitle">Real-time stablecoin stability monitoring. Track depeg risks, price deviations, and reserve health.</p>
+            <p class="powered-by">Powered by <a href="https://rapidapi.com/CPWatch/api/cpw-tracker" target="_blank">CPW API</a> &amp; <a href="https://www.coingecko.com/" target="_blank">CoinGecko</a> &middot; AI analysis by <a href="https://docs.github.com/en/github-models" target="_blank">GitHub Models</a></p>
+        </header>
+
+        <!-- Loading state -->
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading stablecoin data...</p>
+        </div>
+
+        <!-- Main content (hidden until loaded) -->
+        <main id="content" style="display: none;">
+            <!-- Stats bar -->
+            <div class="stats-bar" id="statsBar"></div>
+
+            <!-- AI Analysis -->
+            <div class="analysis-section" id="analysisSection" style="display: none;"></div>
+
+            <!-- Stablecoin table -->
+            <div class="section-header">
+                <div>
+                    <h2 class="section-title">Peg Status</h2>
+                    <p class="section-subtitle">Current prices and risk scores for tracked stablecoins</p>
+                </div>
+            </div>
+            <div class="coin-table-wrapper">
+                <table class="coin-table">
+                    <thead>
+                        <tr>
+                            <th>Stablecoin</th>
+                            <th>Price</th>
+                            <th>Peg Deviation</th>
+                            <th>7d Max Deviation</th>
+                            <th>Market Cap</th>
+                            <th>Risk</th>
+                        </tr>
+                    </thead>
+                    <tbody id="coinTableBody"></tbody>
+                </table>
+            </div>
+
+            <!-- Price charts -->
+            <div class="chart-section">
+                <div class="section-header">
+                    <div>
+                        <h2 class="section-title">7-Day Price Charts</h2>
+                        <p class="section-subtitle">Price history showing deviations from $1.00 peg</p>
+                    </div>
+                </div>
+                <div class="chart-grid" id="chartGrid"></div>
+            </div>
+
+            <!-- Events -->
+            <div class="events-section">
+                <div class="section-header">
+                    <div>
+                        <h2 class="section-title">Recent Events</h2>
+                        <p class="section-subtitle">Stablecoin-related incidents from the past 7 days</p>
+                    </div>
+                </div>
+                <div id="eventsContainer"></div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>StableGuard &mdash; Built with the <a href="https://github.com/1712n/product-kit-template" target="_blank">Product Kit Template</a></p>
+            <p class="last-updated" id="lastUpdated"></p>
+        </footer>
+    </div>
+
+    <script>
+        // Utility functions
+        function formatCurrency(value) {
+            if (value >= 1e12) return '$' + (value / 1e12).toFixed(2) + 'T';
+            if (value >= 1e9) return '$' + (value / 1e9).toFixed(2) + 'B';
+            if (value >= 1e6) return '$' + (value / 1e6).toFixed(2) + 'M';
+            return '$' + value.toLocaleString();
+        }
+
+        function timeAgo(dateStr) {
+            const now = new Date();
+            const date = new Date(dateStr);
+            const diff = Math.floor((now - date) / 1000);
+            if (diff < 60) return 'just now';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+            return Math.floor(diff / 86400) + 'd ago';
+        }
+
+        function getDeviationClass(deviation) {
+            const abs = Math.abs(deviation);
+            if (abs < 0.05) return 'dev-neutral';
+            if (abs < 0.2) return 'dev-positive';
+            if (abs < 0.5) return 'dev-warning';
+            return 'dev-danger';
+        }
+
+        function getRiskColor(level) {
+            const colors = {
+                'LOW': 'var(--accent-green)',
+                'MEDIUM': 'var(--accent-yellow)',
+                'HIGH': 'var(--accent-orange)',
+                'CRITICAL': 'var(--accent-red)'
+            };
+            return colors[level] || 'var(--accent-blue)';
+        }
+
+        // SVG mini chart generator
+        function createMiniChart(priceData, color) {
+            if (!priceData || priceData.length < 2) return '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:20px 0;">No history data</div>';
+
+            const prices = priceData.map(p => p.price);
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            const range = max - min || 0.001;
+
+            const width = 280;
+            const height = 60;
+            const padding = 2;
+
+            const points = prices.map((price, i) => {
+                const x = padding + (i / (prices.length - 1)) * (width - 2 * padding);
+                const y = height - padding - ((price - min) / range) * (height - 2 * padding);
+                return `${x},${y}`;
+            }).join(' ');
+
+            // Create gradient fill
+            const firstPoint = `${padding},${height - padding}`;
+            const lastPoint = `${padding + ((prices.length - 1) / (prices.length - 1)) * (width - 2 * padding)},${height - padding}`;
+
+            // Add $1.00 reference line
+            const pegY = height - padding - ((1.0 - min) / range) * (height - 2 * padding);
+            const pegLine = (pegY >= 0 && pegY <= height) ?
+                `<line x1="0" y1="${pegY}" x2="${width}" y2="${pegY}" stroke="rgba(255,255,255,0.15)" stroke-dasharray="4,4" stroke-width="1"/>` : '';
+
+            return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="fill-${color.replace(/[^a-z0-9]/g, '')}" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="${color}" stop-opacity="0.2"/>
+                        <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                ${pegLine}
+                <polygon points="${firstPoint} ${points} ${lastPoint}" fill="url(#fill-${color.replace(/[^a-z0-9]/g, '')})" />
+                <polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>`;
+        }
+
+        // Extract source URLs from event summary
+        function extractSources(summary) {
+            if (!summary) return { text: summary, sources: [] };
+            const parts = summary.split('\nSources:\n');
+            const text = parts[0];
+            const sources = [];
+            if (parts[1]) {
+                const urls = parts[1].match(/https?:\/\/[^\s]+/g) || [];
+                urls.forEach(url => {
+                    try {
+                        const hostname = new URL(url).hostname.replace('www.', '');
+                        sources.push({ url, domain: hostname });
+                    } catch (e) {}
+                });
+            }
+            return { text, sources };
+        }
+
+        // Render functions
+        function renderStats(data) {
+            const coins = data.stablecoins || [];
+            const events = data.events || [];
+
+            const avgDeviation = coins.length > 0
+                ? (coins.reduce((sum, c) => sum + Math.abs(c.deviation), 0) / coins.length).toFixed(4)
+                : '0';
+
+            const criticalCount = coins.filter(c => c.riskLevel === 'CRITICAL' || c.riskLevel === 'HIGH').length;
+            const totalMcap = coins.reduce((sum, c) => sum + (c.marketCap || 0), 0);
+
+            const stats = [
+                { value: coins.length, label: 'Stablecoins Tracked', color: 'var(--accent-blue)' },
+                { value: avgDeviation + '%', label: 'Avg Peg Deviation', color: Math.abs(parseFloat(avgDeviation)) < 0.1 ? 'var(--accent-green)' : 'var(--accent-yellow)' },
+                { value: criticalCount, label: 'High/Critical Risk', color: criticalCount > 0 ? 'var(--accent-red)' : 'var(--accent-green)' },
+                { value: events.length, label: 'Events (7d)', color: 'var(--accent-blue)' },
+                { value: formatCurrency(totalMcap), label: 'Total Market Cap', color: 'var(--accent-blue)' }
+            ];
+
+            document.getElementById('statsBar').innerHTML = stats.map(s => `
+                <div class="stat-card">
+                    <div class="stat-value" style="color: ${s.color}">${s.value}</div>
+                    <div class="stat-label">${s.label}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderAnalysis(data) {
+            const analysis = data.aiAnalysis;
+            if (!analysis || !analysis.content) return;
+
+            const section = document.getElementById('analysisSection');
+            section.style.display = 'block';
+
+            const paragraphs = analysis.content.split('\n\n').filter(p => p.trim());
+
+            section.innerHTML = `
+                <div class="analysis-header">
+                    <span class="analysis-badge">AI Analysis</span>
+                    <h2 class="analysis-title">Weekly Risk Briefing</h2>
+                </div>
+                <div class="analysis-content">
+                    ${paragraphs.map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('')}
+                </div>
+                <div class="analysis-meta">
+                    Generated ${timeAgo(analysis.generatedAt)} using ${analysis.model} via GitHub Models
+                </div>
+            `;
+        }
+
+        function renderTable(data) {
+            const coins = (data.stablecoins || []).sort((a, b) => b.marketCap - a.marketCap);
+
+            document.getElementById('coinTableBody').innerHTML = coins.map(coin => {
+                const devClass = getDeviationClass(coin.deviation);
+                const riskColor = getRiskColor(coin.riskLevel);
+                const devSign = coin.deviation >= 0 ? '+' : '';
+
+                return `<tr>
+                    <td>
+                        <div class="coin-name">
+                            <div class="coin-symbol-badge">${coin.symbol.substring(0, 4)}</div>
+                            <div>
+                                <div class="coin-name-text">${coin.name}</div>
+                                <div class="coin-symbol-text">${coin.symbol}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="price-value">$${coin.price.toFixed(6)}</span></td>
+                    <td><span class="deviation-badge ${devClass}">${devSign}${coin.deviation.toFixed(4)}%</span></td>
+                    <td><span class="deviation-badge ${getDeviationClass(coin.maxDeviation7d)}">${coin.maxDeviation7d.toFixed(4)}%</span></td>
+                    <td><span class="market-cap">${formatCurrency(coin.marketCap)}</span></td>
+                    <td>
+                        <span class="risk-badge risk-${coin.riskLevel}">${coin.riskLevel}</span>
+                        <div class="risk-meter">
+                            <div class="risk-meter-fill" style="width: ${coin.riskScore}%; background: ${riskColor}"></div>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderCharts(data) {
+            const history = data.priceHistory || {};
+            const coins = (data.stablecoins || []).sort((a, b) => b.marketCap - a.marketCap);
+            const grid = document.getElementById('chartGrid');
+
+            grid.innerHTML = coins.filter(c => history[c.symbol] && history[c.symbol].length > 0).map(coin => {
+                const chartData = history[coin.symbol];
+                const color = getRiskColor(coin.riskLevel);
+                const prices = chartData.map(p => p.price);
+                const min = Math.min(...prices).toFixed(6);
+                const max = Math.max(...prices).toFixed(6);
+
+                return `<div class="chart-card">
+                    <div class="chart-card-header">
+                        <span class="chart-coin-name">${coin.symbol}</span>
+                        <span class="chart-coin-price">$${coin.price.toFixed(6)}</span>
+                    </div>
+                    <div class="mini-chart">
+                        ${createMiniChart(chartData, color)}
+                    </div>
+                    <div class="chart-stats">
+                        <span>Low: $${min}</span>
+                        <span style="color: rgba(255,255,255,0.2)">$1.00 peg</span>
+                        <span>High: $${max}</span>
+                    </div>
+                </div>`;
+            }).join('');
+
+            if (grid.innerHTML === '') {
+                grid.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:32px;grid-column:1/-1;">Price history will populate on next data update.</div>';
+            }
+        }
+
+        function renderEvents(data) {
+            const events = data.events || [];
+            const container = document.getElementById('eventsContainer');
+
+            if (events.length === 0) {
+                container.innerHTML = `
+                    <div class="no-events">
+                        <div class="no-events-icon">&#9989;</div>
+                        <h3>No Stablecoin Events This Week</h3>
+                        <p style="margin-top:8px;">No depeg, reserve, or regulatory events detected in the past 7 days.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = events.slice(0, 20).map(event => {
+                const { text, sources } = extractSources(event.eventSummary);
+                const category = event.category || 'general';
+
+                return `<div class="event-card cat-${category}">
+                    <div class="event-meta">
+                        <span class="event-time">${timeAgo(event.timestamp)}</span>
+                        <span class="event-category">${category}</span>
+                    </div>
+                    <div class="event-summary">${text}</div>
+                    ${event.entities ? `<div class="event-entities">${event.entities.split(',').map(e => `<span class="entity-tag">${e.trim()}</span>`).join('')}</div>` : ''}
+                    ${sources.length > 0 ? `<div class="event-sources">${sources.map(s => `<a href="${s.url}" target="_blank" rel="noopener">${s.domain}</a>`).join('')}</div>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        // Main load
+        async function loadData() {
+            try {
+                const response = await fetch('data/events.json');
+                if (!response.ok) throw new Error('Failed to load data');
+                const data = await response.json();
+
+                renderStats(data);
+                renderAnalysis(data);
+                renderTable(data);
+                renderCharts(data);
+                renderEvents(data);
+
+                document.getElementById('lastUpdated').textContent = `Last updated: ${new Date(data.lastUpdated).toLocaleString()}`;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `
+                    <p style="color: var(--accent-red);">Failed to load data. Please try again later.</p>
+                    <p style="margin-top: 8px; font-size: 13px; color: var(--text-muted);">${error.message}</p>
+                `;
+            }
+        }
+
+        loadData();
+
+        // Auto-refresh every 5 minutes
+        setInterval(loadData, 300000);
+    </script>
+</body>
+</html>
