@@ -882,11 +882,18 @@
             }).join('');
         }
 
+        // Resolve the data URL relative to the page's base path
+        function getDataUrl() {
+            const base = document.baseURI || window.location.href;
+            return new URL('data/events.json', base).href;
+        }
+
         // Main load
         async function loadData() {
             try {
-                const response = await fetch('data/events.json');
-                if (!response.ok) throw new Error('Failed to load data');
+                const url = getDataUrl();
+                const response = await fetch(url, { cache: 'no-cache' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 const data = await response.json();
 
                 renderStats(data);
